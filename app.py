@@ -83,7 +83,6 @@ def get_clean_json(data):
         data = json.loads(data)
         return data
     except Exception as error:
-        print(error)
         return ""
 
 
