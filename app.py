@@ -42,7 +42,8 @@ async def handle_client(client):
                     process = False
                 else:
                     json = get_clean_json(data)
-                    await wsclient.send(bytes(convert_list_to_string(add_entity_type(json)), 'utf-8'))
+                    if json != "":
+                        await wsclient.send(bytes(convert_list_to_string(add_entity_type(json)), 'utf-8'))
             except Exception as error:
                 print(str(error))
                 WSCLIENTS.remove(wsclient)
@@ -77,9 +78,13 @@ def add_entity_type(entity_dcs):
 
 
 def get_clean_json(data):
-    data = str(data).replace('b"[','[').replace("'", '"').replace("\n", " ").replace("]'", "]").replace("},]\"", "}]")
-    data = json.loads(data)
-    return data
+    try:
+        data = str(data).replace('b"[','[').replace("'", '"').replace("\n", " ").replace("]'", "]").replace("},]\"", "}]")
+        data = json.loads(data)
+        return data
+    except Exception as error:
+        print(error)
+        return ""
 
 
 def ws_clients_remove(wsclient):
