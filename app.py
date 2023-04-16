@@ -35,33 +35,44 @@ async def handle_client(client):
     loop = asyncio.get_event_loop()
     process = True
     while process:
-        data = (await loop.sock_recv(client, 2048))
-        for wsclient in WSCLIENTS:
-            try:
-                if not data:
-                    process = False
-                else:
-                    json = get_clean_json(data)
-                    if json != "":
-                        await wsclient.send(bytes(convert_list_to_string(add_entity_type(json)), 'utf-8'))
-            except Exception as error:
-                print(str(error))
-                WSCLIENTS.remove(wsclient)
+        # read the message length header
+        header = await loop.sock_recv(client, 4)
+        if not header:
+            process = False
+            break
+        msg_len = int.from_bytes(header, byteorder='big')
+
+        # read the message based on the length in the header
+        data = b''
+        while len(data) < msg_len:
+            packet = await loop.sock_recv(client, min(msg_len - len(data), 2048))
+            if not packet:
+                process = False
+                break
+            data += packet
+        
+        # process the message
+        if process:
+            json_data = get_clean_json(data)
+            
+            if json_data:
+                entity_data = add_entity_type(json_data)
+                for wsclient in WSCLIENTS:
+                    try:
+                        await wsclient.send(bytes(convert_list_to_string(entity_data), 'utf-8'))
+                    except Exception as error:
+                        print(str(error))
+                        WSCLIENTS.remove(wsclient)
+
     client.close()
 
-def convert_list_to_string(list):
-    response = "["
-    first = True
-    for item in list:
-        if first:
-            response = response + json.dumps(item)
-            first = False
-        else:
-            response = response + ',' + json.dumps(item)
-    return response + ']'
+
+def convert_list_to_string(data):
+    return json.dumps(data)
+
 
 def add_entity_type(entity_dcs):
-    
+
     for item in entity_dcs:
         if 'Player' in item.get('group'):
             item[PROPERTY_TYPE] = EntityDcsTypes.PLANE
@@ -79,16 +90,17 @@ def add_entity_type(entity_dcs):
 
 def get_clean_json(data):
     try:
-        data = str(data).replace('b"[','[').replace("'", '"').replace("\n", " ").replace("]'", "]").replace("},]\"", "}]")
+        print(str(data))
+        data = data.decode('utf-8')
+        print(str(data))
+        data = data.replace('b"[','[').replace('\n', ' ').replace('[,', '[').replace(",]", "]").replace("'",'"')
+        print(str(data))
         data = json.loads(data)
+        print('to return data:'+str(data))
         return data
     except Exception as error:
+        print(error)
         return ""
-
-
-def ws_clients_remove(wsclient):
-    print("Remove {} from websocket clients".format(str(wsclient.id)))
-    WSCLIENTS.remove(wsclient)
 
 
 async def start_websocket():
@@ -104,6 +116,7 @@ async def on_web_socket_message(websocket, path):
             WSCLIENTS.append(websocket)
             print('Connected ' + str(websocket.id))
             await websocket.send('accepted')
+
 
 print('STARTING...')
 loop = asyncio.get_event_loop()
