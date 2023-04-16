@@ -21,18 +21,20 @@ class EntityDcsTypes:
 async def handle_client(client):
     loop = asyncio.get_event_loop()
     process = True
+    print('Game server connected... ')
     while process:
         # read the message length header
         header = await loop.sock_recv(client, 4)
         if not header:
             process = False
             break
-        msg_len = int.from_bytes(header, byteorder='big')
+        msg_len = int.from_bytes(header, byteorder='little')
 
         # read the message based on the length in the header
         data = b''
         while len(data) < msg_len:
             packet = await loop.sock_recv(client, min(msg_len - len(data), 2048))
+            
             if not packet:
                 process = False
                 break
