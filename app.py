@@ -18,19 +18,6 @@ class EntityDcsTypes:
     ENEMIES = 'enemies'
     UNKNOWN = '-'
 
-
-async def start_socket():
-    print('STARTING SOCKET SERVER ON ' + str(SOCKET_PORT))
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((SOCKET_HOST, SOCKET_PORT))
-    server.listen()
-    server.setblocking(False)
-    loop = asyncio.get_event_loop()
-    while True:
-        client, _ = await loop.sock_accept(server)
-        loop.create_task(handle_client(client))
-
-
 async def handle_client(client):
     loop = asyncio.get_event_loop()
     process = True
@@ -61,7 +48,7 @@ async def handle_client(client):
                     try:
                         await wsclient.send(bytes(convert_list_to_string(entity_data), 'utf-8'))
                     except Exception as error:
-                        print(str(error))
+                        print('Error:' + 'error on process ' + str(error))
                         WSCLIENTS.remove(wsclient)
 
     client.close()
@@ -90,13 +77,9 @@ def add_entity_type(entity_dcs):
 
 def get_clean_json(data):
     try:
-        print(str(data))
         data = data.decode('utf-8')
-        print(str(data))
         data = data.replace('b"[','[').replace('\n', ' ').replace('[,', '[').replace(",]", "]").replace("'",'"')
-        print(str(data))
         data = json.loads(data)
-        print('to return data:'+str(data))
         return data
     except Exception as error:
         print(error)
@@ -107,6 +90,17 @@ async def start_websocket():
     print('STARTING WEBSOCKET ON ' + str(WEBSOCKET_PORT))
     async with websockets.serve(on_web_socket_message, WEBSOCKET_HOST, WEBSOCKET_PORT):
         await asyncio.Future()
+
+async def start_socket():
+    print('STARTING SOCKET SERVER ON ' + str(SOCKET_PORT))
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((SOCKET_HOST, SOCKET_PORT))
+    server.listen()
+    server.setblocking(False)
+    loop = asyncio.get_event_loop()
+    while True:
+        client, _ = await loop.sock_accept(server)
+        loop.create_task(handle_client(client))
 
 
 async def on_web_socket_message(websocket, path):
